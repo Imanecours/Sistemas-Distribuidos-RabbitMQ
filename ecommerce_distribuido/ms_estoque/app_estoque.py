@@ -12,7 +12,7 @@ ESTOQUE = [
 
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
-with open('ms_principal/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+with open('ms_estoque/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
     chave_publica_principal = rsa.PublicKey.load_pkcs1(f.read())
 
 # carrega a chave privada do ms_estoque (para ele assinar as proprias mensagens):
@@ -31,7 +31,7 @@ def publicar_evento(canal, routing_key, msg):
     cabecalho = pika.BasicProperties(headers={'Signature': assinatura_texto})
 
     #publica a mensagem na exchange
-    canal.basic_publish(exchange='ecommerce', routing_key=routing_key, body=msg_texto, properties=cabecalho)
+    canal.basic_publish(exchange='eCommerce', routing_key=routing_key, body=msg_texto, properties=cabecalho)
 
     print(f"evento publicado (estoque): msg= {msg_texto}, assinatura= {assinatura_texto}, routing_key= {routing_key}, cabeçalho= {cabecalho}")
 
@@ -64,6 +64,8 @@ def processar_novo_pedido(canal, pedido):
     id_pedido = pedido['id_pedido']
     produtos_pedidos = pedido['produtos']
 
+    print(f"\nAnalisando disponibilidade para o Pedido #{id_pedido}")
+
     # verifica se tem estoque:
     tem_estoque = True
     for item in produtos_pedidos:
@@ -77,9 +79,9 @@ def processar_novo_pedido(canal, pedido):
         for item in produtos_pedidos:
             produto_estoque = next(p for p in ESTOQUE if p['id_produto'] == item['id_produto'])
             produto_estoque['quantidade'] -= item['quantidade']
-            print(f"tem estoque; sai produto {produto_estoque['nome']} e sobram {item['quantidade']}")
+            print(f"tem estoque; sai produto {produto_estoque['nome']} e sobram {produto_estoque['quantidade']}")
 
-            publicar_evento(canal, 'pedido.estoque_ok', pedido) #publica evento avisando que o estoque está ok
+        publicar_evento(canal, 'pedido.estoque_ok', pedido) #publica evento avisando que o estoque está ok
 
     else:
         publicar_evento(canal, 'estoque.indisponivel', pedido)  
