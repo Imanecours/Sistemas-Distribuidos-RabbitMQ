@@ -2,14 +2,7 @@ import pika
 import json
 import rsa
 import base64
-
-ESTOQUE = [
-    {"id_produto": 1, "nome": "papel", "quantidade": 10, "preco": 3.00},
-    {"id_produto": 2, "nome": "caneta", "quantidade": 50, "preco": 12.00},
-    {"id_produto": 3, "nome": "lapis", "quantidade": 30, "preco": 20.00},
-    {"id_produto": 4, "nome": "apontador", "quantidade": 30, "preco": 15.00}
-]
-
+from produtos import ESTOQUE
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
 with open('ms_estoque/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
