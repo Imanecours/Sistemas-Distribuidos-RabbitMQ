@@ -4,6 +4,13 @@ import rsa
 import base64
 import threading
 
+import sys
+from pathlib import Path
+pasta_atual = Path(__file__).resolve().parent
+pasta_produtos = (pasta_atual / ".." / ".." / "pasta_produtos").resolve()
+sys.path.append(str(pasta_produtos))
+from produtos import ESTOQUE
+
 # carregar a chave privada do ms principal para ele assinar os pedidos
 with open('ms_principal/privada.pem', 'rb') as f:
     chave_privada = rsa.PrivateKey.load_pkcs1(f.read())
@@ -18,13 +25,6 @@ with open('ms_principal/chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
 with open('ms_principal/chaves_publicas/ms_entrega_publica.pem', 'rb') as f:
     chave_pub_entrega = rsa.PublicKey.load_pkcs1(f.read())
 
-# banco de dados simulado
-produtos = [
-    {"id_produto": 1, "nome": "papel", "quantidade": 10, "preco": 3.00},
-    {"id_produto": 2, "nome": "caneta", "quantidade": 50, "preco": 12.00},
-    {"id_produto": 3, "nome": "lapis", "quantidade": 30, "preco": 20.00},
-    {"id_produto": 4, "nome": "apontador", "quantidade": 30, "preco": 15.00}
-]
 meus_pedidos = {}
 
 def publicar_evento(routing_key, msg):
@@ -114,7 +114,7 @@ def menu():
         opcao = input("escolha uma opcao: ")
 
         if opcao == '1':
-            for p in produtos:
+            for p in ESTOQUE:
                 print(f"{p['id_produto']} - {p['nome']} (R$ {p['preco']})")
         
         elif opcao == '2':

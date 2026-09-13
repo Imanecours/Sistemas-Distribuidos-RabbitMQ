@@ -2,6 +2,12 @@ import pika
 import json
 import rsa
 import base64
+
+import sys
+from pathlib import Path
+pasta_atual = Path(__file__).resolve().parent
+pasta_produtos = (pasta_atual / ".." / ".." / "pasta_produtos").resolve()
+sys.path.append(str(pasta_produtos))
 from produtos import ESTOQUE
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
