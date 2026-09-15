@@ -12,17 +12,17 @@ sys.path.append(str(pasta_produtos))
 from produtos import ESTOQUE
 
 # carregar a chave privada do ms principal para ele assinar os pedidos
-with open('ms_principal/privada.pem', 'rb') as f:
+with open('ms_principal_privada.pem', 'rb') as f:
     chave_privada = rsa.PrivateKey.load_pkcs1(f.read())
 
 # carregar as chaves publicas dos outros microsservicos para validar quem mandou
-with open('ms_principal/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+with open('chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
     chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
     
-with open('ms_principal/chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
+with open('chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
     chave_pub_pagamento = rsa.PublicKey.load_pkcs1(f.read())
     
-with open('ms_principal/chaves_publicas/ms_entrega_publica.pem', 'rb') as f:
+with open('chaves_publicas/ms_entrega_publica.pem', 'rb') as f:
     chave_pub_entrega = rsa.PublicKey.load_pkcs1(f.read())
 
 meus_pedidos = {}
