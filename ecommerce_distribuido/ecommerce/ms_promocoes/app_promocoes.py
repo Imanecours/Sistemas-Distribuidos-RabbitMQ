@@ -15,7 +15,7 @@ def publicar_promocao():
     canal = connection.channel()
     canal.exchange_declare(exchange='Promoções', exchange_type='topic')
 
-    item_promo = random.choice(list(ESTOQUE.keys()))
+    item_promo = random.choice(ESTOQUE)
     routing_key = f"promocao.categoria.{item_promo['categoria']}"
     valores = [90, 80, 70, 60]
     desconto = random.choice(valores)
