@@ -19,7 +19,11 @@ def esperar_promocao():
         print(f"{metodo.routing_key}: {msg}")
 
     canal.basic_consume(queue=nome_fila, on_message_callback=callback, auto_ack=True)
-    canal.start_consuming()
+    try:
+        canal.start_consuming()
+    except KeyboardInterrupt:
+        print("\nencerrando o consumidor...")
+        connection.close()
 
 if __name__ == '__main__':
     esperar_promocao()

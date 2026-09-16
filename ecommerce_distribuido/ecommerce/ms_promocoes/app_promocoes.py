@@ -25,6 +25,9 @@ def publicar_promocao():
     connection.close()
 
 if __name__ == '__main__':
-    while True:
-        publicar_promocao()
-        time.sleep(15)
+    try:
+        while True:
+            publicar_promocao()
+            time.sleep(15)
+    except KeyboardInterrupt:
+        print("\nencerrando o gerador de promocoes...")
