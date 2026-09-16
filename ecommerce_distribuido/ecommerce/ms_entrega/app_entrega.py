@@ -5,11 +5,11 @@ import base64
 import time
 
 # obter a chave publica do microsservico produtor (MS Pagamento)
-with open('chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
+with open('ecommerce/ms_entrega/chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
     chave_publica_pagamento = rsa.PublicKey.load_pkcs1(f.read())
 
 # para assinar as mensagens com a propria chave
-with open('ms_entrega_privada.pem', 'rb') as f:
+with open('ecommerce/ms_entrega/ms_entrega_privada.pem', 'rb') as f:
     chave_privada_entrega = rsa.PrivateKey.load_pkcs1(f.read())
 
 def publicar_evento(canal, routing_key, msg):
