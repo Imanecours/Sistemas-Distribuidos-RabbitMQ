@@ -11,11 +11,11 @@ sys.path.append(str(pasta_produtos))
 from produtos import ESTOQUE
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
-with open('ecommerce/ms_estoque/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
+with open('chaves_publicas/ms_principal_publica.pem', 'rb') as f:
     chave_publica_principal = rsa.PublicKey.load_pkcs1(f.read())
 
 # carrega a chave privada do ms_estoque (para ele assinar as proprias mensagens):
-with open('ecommerce/ms_estoque/ms_estoque_privada.pem', 'rb') as f:
+with open('ms_estoque_privada.pem', 'rb') as f:
     chave_privada_estoque = rsa.PrivateKey.load_pkcs1(f.read())
 
 # função para enviar mensagem ASSINADA:
