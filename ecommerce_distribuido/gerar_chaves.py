@@ -10,7 +10,7 @@ pastas = [
     "ms_promocoes"
 ]
 
-# Gardar as chaves públicas geradas para cada microserviço
+# Gardar as chaves publicas geradas para cada microserviço
 chaves_geradas = {}
 
 print("Geração de chaves RSA para os microserviços e consumidores\n")
@@ -26,15 +26,15 @@ for ms in pastas:
     with open(f'{pasta}/{ms}_privada.pem', 'wb') as f:
         f.write(priv.save_pkcs1())
 
-print("\nDistribution das chaves públicas")
+print("\nDistribution das chaves publicas")
 for pasta_destino in pastas:
-    # Criamos o diretório chaves_publicas para TODOS
+    # Criamos o diretorio chaves_publicas para todos
     pasta_pub = f"ecommerce/{pasta_destino}/chaves_publicas"
     os.makedirs(pasta_pub, exist_ok=True)
     
-    # Copiamos as chaves públicas de todos os MS para dentro
+    # Copiamos as chaves publicas de todos os MS para dentro
     for nome_ms_origem, chave_pub in chaves_geradas.items():
-        if pasta_destino != nome_ms_origem: # Não precisamos nos dar a nossa própria chave pública
+        if pasta_destino != nome_ms_origem: # Nao precisamos nos dar a nossa própria chave pública
             with open(f'{pasta_pub}/{nome_ms_origem}_publica.pem', 'wb') as f:
                 f.write(chave_pub.save_pkcs1())
 
