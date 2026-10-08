@@ -67,6 +67,22 @@ def stream():
 
     return Response(gerador(), mimetype='text/event-stream')
 
+@app.route('/pedido/<int:id_pedido>', methods=['DELETE'])
+def cancelar_pedido(id_pedido):
+    if id_pedido in meus_pedidos:
+        pedido = meus_pedidos[id_pedido]
+        
+        pedido['status'] = 'pedido.excluido'
+        
+        publicar_evento('pedido.excluido', pedido)
+        
+        fila_notificacoes.put({"id_pedido": id_pedido, "status": "pedido.excluido"})
+        
+        print(f"Pedido {id_pedido} cancelado pelo usuario.")
+        return jsonify({"mensagem": "Pedido cancelado com sucesso"}), 200
+    else:
+        return jsonify({"erro": "Pedido nao encontrado"}), 404
+
 # carregar a chave privada do ms principal para ele assinar os pedidos
 with open('ecommerce/ms_principal/ms_principal_privada.pem', 'rb') as f:
     chave_privada = rsa.PrivateKey.load_pkcs1(f.read())
