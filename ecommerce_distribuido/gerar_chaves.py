@@ -1,6 +1,8 @@
 import rsa
 import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # Lista de todos os microserviços e consumidores que precisam de chaves
 pastas = [
     "ms_principal",
@@ -19,7 +21,7 @@ for ms in pastas:
     pub, priv = rsa.newkeys(512)
     chaves_geradas[ms] = pub 
 
-    pasta = f"ecommerce/{ms}"
+    pasta = os.path.join(BASE_DIR, "ecommerce", ms)
     
     # Criamos a pasta do microserviço e salvamos a chave privada
     os.makedirs(pasta, exist_ok=True)
@@ -29,7 +31,7 @@ for ms in pastas:
 print("\nDistribution das chaves publicas")
 for pasta_destino in pastas:
     # Criamos o diretorio chaves_publicas para todos
-    pasta_pub = f"ecommerce/{pasta_destino}/chaves_publicas"
+    pasta_pub = os.path.join(BASE_DIR, "ecommerce", pasta_destino, "chaves_publicas")
     os.makedirs(pasta_pub, exist_ok=True)
     
     # Copiamos as chaves publicas de todos os MS para dentro
@@ -38,4 +40,4 @@ for pasta_destino in pastas:
             with open(f'{pasta_pub}/{nome_ms_origem}_publica.pem', 'wb') as f:
                 f.write(chave_pub.save_pkcs1())
 
-print("\n[Sucesso] Todas as chaves estão geradas e organizadas nos diretórios corretos")
+print("\n[Sucesso] Todas as chaves estão geradas e organizadas nos diretórios corretos")

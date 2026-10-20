@@ -2,12 +2,15 @@ import pika
 import json
 import rsa
 import base64
+import os
 
 import sqlite3
 
 from flask import Flask, jsonify
 import threading
-from database import inicializar_banco, buscar_produtos
+from database import inicializar_banco, buscar_produtos, DB_PATH
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
 
@@ -19,11 +22,11 @@ def listar():
     return jsonify(produtos)
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
-with open('ecommerce/ms_estoque/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_principal_publica.pem'), 'rb') as f:
     chave_publica_principal = rsa.PublicKey.load_pkcs1(f.read())
 
 # carrega a chave privada do ms_estoque (para ele assinar as proprias mensagens):
-with open('ecommerce/ms_estoque/ms_estoque_privada.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'ms_estoque_privada.pem'), 'rb') as f:
     chave_privada_estoque = rsa.PrivateKey.load_pkcs1(f.read())
 
 # função para enviar mensagem ASSINADA:
@@ -73,7 +76,7 @@ def processar_novo_pedido(canal, pedido):
 
     print(f"\nAnalisando disponibilidade para o Pedido #{id_pedido}")
 
-    conn = sqlite3.connect('estoque.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # verifica se tem estoque:
@@ -100,7 +103,7 @@ def processar_novo_pedido(canal, pedido):
     conn.close()
 
 def devolver_ao_estoque(pedido):
-    conn = sqlite3.connect('estoque.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     for item in pedido['produtos']:

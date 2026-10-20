@@ -3,13 +3,16 @@ import json
 import rsa
 import base64
 import time
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # obter a chave publica do microsservico produtor (MS Pagamento)
-with open('chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_pagamento_publica.pem'), 'rb') as f:
     chave_publica_pagamento = rsa.PublicKey.load_pkcs1(f.read())
 
 # para assinar as mensagens com a propria chave
-with open('ms_entrega_privada.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'ms_entrega_privada.pem'), 'rb') as f:
     chave_privada_entrega = rsa.PrivateKey.load_pkcs1(f.read())
 
 def publicar_evento(canal, routing_key, msg):

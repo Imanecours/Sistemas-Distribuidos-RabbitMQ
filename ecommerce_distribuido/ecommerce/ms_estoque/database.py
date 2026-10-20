@@ -1,8 +1,12 @@
 # ms_estoque/database.py
+import os
 import sqlite3
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'estoque.db')
+
 def inicializar_banco():
-    conn = sqlite3.connect('estoque.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -31,7 +35,7 @@ def inicializar_banco():
     conn.close()
 
 def buscar_produtos():
-    conn = sqlite3.connect('estoque.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('SELECT id, nome, preco, quantidade FROM produtos')
     linhas = cursor.fetchall()

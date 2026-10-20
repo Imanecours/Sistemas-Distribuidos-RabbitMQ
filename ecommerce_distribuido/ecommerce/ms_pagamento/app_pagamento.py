@@ -11,12 +11,14 @@ from urllib.request import urlopen
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # obter a chave pública do microsserviço produtor (MS Estoque)
-with open('ecommerce/ms_pagamento/ms_pagamento_privada.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'ms_pagamento_privada.pem'), 'rb') as f:
     chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
 
 # para asinar as mensagens 
-with open('ecommerce/ms_pagamento/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_estoque_publica.pem'), 'rb') as f:
     chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
 
 app = Flask(__name__)
