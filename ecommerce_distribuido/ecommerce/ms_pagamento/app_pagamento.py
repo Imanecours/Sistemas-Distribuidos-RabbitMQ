@@ -12,12 +12,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 # obter a chave pública do microsserviço produtor (MS Estoque)
-with open('chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
-    chave_publica_estoque = rsa.PublicKey.load_pkcs1(f.read())
+with open('ecommerce/ms_pagamento/ms_pagamento_privada.pem', 'rb') as f:
+    chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
 
 # para asinar as mensagens 
-with open('ms_pagamento_privada.pem', 'rb') as f:
-    chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
+with open('ecommerce/ms_pagamento/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+    chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
 
 app = Flask(__name__)
 CORS(app)
@@ -55,7 +55,7 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 
     try: 
         # verificar a assinatura digital do evento e confirmar a autenticidade e a integridade da mensagem
-        rsa.verify(msg, assinatura_bytes, chave_publica_estoque)
+        rsa.verify(msg, assinatura_bytes, chave_pub_estoque)
         
         # processar o evento 
         pedido = json.loads(msg)
