@@ -22,6 +22,31 @@ def obter_produtos():
     except requests.exceptions.RequestException:
         return jsonify({"erro": "ms_estoque indisponivel"}), 503
 
+@app.route('/promocoes', methods=['POST'])
+def cadastrar_promocao():
+    dados = request.get_json(silent=True)
+
+    if not isinstance(dados, dict):
+        return jsonify({"erro": "corpo da requisicao invalido"}), 400
+
+    email = dados.get('email')
+    categorias = dados.get('categorias')
+    if not isinstance(email, str) or not email.strip():
+        return jsonify({"erro": "email obrigatorio"}), 400
+    if not isinstance(categorias, list):
+        return jsonify({"erro": "categorias deve ser uma lista"}), 400
+
+    inscricao = {
+        "email": email.strip(),
+        "categorias": categorias
+    }
+    publicar_evento('interesse.promocao', inscricao)
+
+    return jsonify({
+        "status": "inscricao.realizada",
+        "mensagem": "Inscricao em promocoes realizada com sucesso"
+    }), 201
+
 @app.route('/comprar', methods=['POST'])
 def comprar():
     dados_pedido = request.get_json()
