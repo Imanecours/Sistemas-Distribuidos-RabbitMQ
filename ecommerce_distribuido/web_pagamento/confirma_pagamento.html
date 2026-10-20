@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmação de pagamento</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            align-items: center;
+            background: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        main {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 18px rgb(0 0 0 / 12%);
+            max-width: 480px;
+            padding: 2rem;
+            width: calc(100% - 3rem);
+        }
+
+        h1 {
+            color: #1f2937;
+            font-size: 1.5rem;
+            margin-top: 0;
+        }
+
+        label {
+            color: #374151;
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        input {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            padding: 0.7rem;
+            width: 100%;
+        }
+
+        .acoes {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        button {
+            border: 0;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            flex: 1;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.8rem;
+        }
+
+        button:disabled {
+            cursor: wait;
+            opacity: 0.6;
+        }
+
+        .aprovado {
+            background: #15803d;
+        }
+
+        .recusado {
+            background: #b91c1c;
+        }
+
+        #mensagem {
+            min-height: 1.25rem;
+            margin-bottom: 0;
+            margin-top: 1.25rem;
+        }
+
+        .erro {
+            color: #b91c1c;
+        }
+
+        .sucesso {
+            color: #15803d;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Confirmação de pagamento</h1>
+
+        <label for="url-webhook">URL do webhook</label>
+        <input
+            id="url-webhook"
+            name="url-webhook"
+            type="url"
+            placeholder="http://localhost:5000/webhook/pagamento"
+            required
+        >
+
+        <div class="acoes">
+            <button class="aprovado" data-status="aprovado" type="button">
+                Pagamento Aprovado
+            </button>
+            <button class="recusado" data-status="recusado" type="button">
+                Pagamento Recusado
+            </button>
+        </div>
+
+        <p id="mensagem" role="status" aria-live="polite"></p>
+    </main>
+
+    <script>
+        const campoWebhook = document.querySelector("#url-webhook");
+        const mensagem = document.querySelector("#mensagem");
+        const botoes = document.querySelectorAll("button[data-status]");
+
+        const parametros = new URLSearchParams(window.location.search);
+        const webhookInformado = parametros.get("webhook");
+        if (webhookInformado) {
+            campoWebhook.value = webhookInformado;
+        }
+
+        function mostrarMensagem(texto, tipo) {
+            mensagem.className = tipo;
+            mensagem.textContent = texto;
+        }
+
+        async function enviarPagamento(status) {
+            const url = campoWebhook.value.trim();
+
+            if (!campoWebhook.checkValidity() || !url) {
+                campoWebhook.reportValidity();
+                mostrarMensagem("Informe uma URL de webhook válida.", "erro");
+                return;
+            }
+
+            botoes.forEach((item) => {
+                item.disabled = true;
+            });
+            mostrarMensagem("Enviando confirmação...", "");
+
+            try {
+                const resposta = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        status: status,
+                        evento: `pagamento.${status}`,
+                        data: new Date().toISOString()
+                    })
+                });
+
+                if (!resposta.ok) {
+                    throw new Error(`HTTP ${resposta.status}`);
+                }
+
+                mostrarMensagem(
+                    `Pagamento ${status} enviado com sucesso.`,
+                    "sucesso"
+                );
+            } catch (erro) {
+                console.error("Falha ao enviar o webhook:", erro);
+                mostrarMensagem(
+                    "Não foi possível enviar o webhook. Verifique a URL e o serviço.",
+                    "erro"
+                );
+            } finally {
+                botoes.forEach((item) => {
+                    item.disabled = false;
+                });
+            }
+        }
+
+        botoes.forEach((botao) => {
+            botao.addEventListener("click", () => {
+                enviarPagamento(botao.dataset.status);
+            });
+        });
+    </script>
+</body>
+</html>
