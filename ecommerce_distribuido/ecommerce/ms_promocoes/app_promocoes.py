@@ -25,6 +25,10 @@ def publicar_promocao():
             return
 
         item_promo = random.choice(lista_produtos)
+        
+        if 'categoria' not in item_promo:
+            item_promo['categoria'] = random.choice(['papelaria', 'escritorio', 'acessorios'])
+        
         desconto = random.choice([10, 20, 30, 50])
         
         notificar_clientes_promocao(item_promo, desconto)
@@ -57,12 +61,11 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 
 def notificar_clientes_promocao(item_promo, desconto):
     for cadastro in cadastros:
-        # Verifica se o cliente marcou a categoria do produto sorteado
+        # verifica se o cliente marcou a categoria do produto sorteado
         if item_promo['categoria'] in cadastro['categorias']:
             print(f"> Enviando para {cadastro['email']} promoção de {item_promo['nome']} com desconto de {desconto}%")
+            send_email(cadastro['email'], item_promo, desconto)
             
-            # ATENÇÃO: Só descomente a linha abaixo se o seu colega te passou o arquivo .env com a chave da API Resend!
-            # send_email(cadastro['email'], item_promo, desconto)
 
 def iniciar_consumidor(): 
     credenciais = pika.PlainCredentials('admin', 'admin123')

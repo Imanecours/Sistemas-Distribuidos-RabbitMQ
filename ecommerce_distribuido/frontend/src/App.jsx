@@ -93,8 +93,7 @@ function Catalogo() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, categorias: categoriasSelecionadas })
     })
-    .then(res => res.json())
-    .then(dados => {
+    .then(() => {
       alert("Inscrição realizada com sucesso!");
       setEmail(''); // Limpa o formulário
     })
