@@ -33,6 +33,10 @@ function Catalogo() {
     eventSource.onmessage = (event) => {
       const novaNotificacao = JSON.parse(event.data);
 
+      if (novaNotificacao.link_pagamento) {
+        window.open(novaNotificacao.link_pagamento, '_blank', 'noopener,noreferrer');
+      }
+
       setNotificacoes((notificacoesAnteriores) => {
         const index = notificacoesAnteriores.findIndex(n => n.id_pedido === novaNotificacao.id_pedido);
         if (index >= 0) {

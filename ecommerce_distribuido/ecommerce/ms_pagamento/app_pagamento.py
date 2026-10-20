@@ -2,7 +2,14 @@ import pika
 import json
 import rsa
 import base64
-import random
+import os
+import threading
+import uuid
+from urllib.parse import quote
+from urllib.request import urlopen
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 # obter a chave pública do microsserviço produtor (MS Estoque)
 with open('chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
@@ -11,6 +18,18 @@ with open('chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
 # para asinar as mensagens 
 with open('ms_pagamento_privada.pem', 'rb') as f:
     chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
+
+app = Flask(__name__)
+CORS(app)
+pagamentos_pendentes = {}
+URL_CONFIRMA_PAGAMENTO = os.getenv(
+    'URL_CONFIRMA_PAGAMENTO',
+    'http://localhost:8000/confirma_pagamento.html',
+)
+URL_WEBHOOK = os.getenv(
+    'URL_WEBHOOK_PAGAMENTO',
+    'http://localhost:5002/webhook/pagamento',
+)
 
 def publicar_evento(canal, routing_key, msg):
     msg_texto = json.dumps(msg)
@@ -50,16 +69,54 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 def processar_pagamento(canal, pedido):
     id_pedido = pedido['id_pedido']
     print(f"\n Processando pagamento para o pedido #{id_pedido}")
-    
-    # aleatorio para saber se um pagamento foi aprovado ou recusado
-    pagamento_aprovado = random.choice([True, False])
 
-    if pagamento_aprovado:
-        print(f"Pagamento aprovado para o pedido #{id_pedido}.")
-        publicar_evento(canal, 'pagamento.aprovado', pedido)
-    else:
-        print(f"Pagamento recusado para o pedido #{id_pedido}.")
-        publicar_evento(canal, 'pagamento.recusado', pedido)
+    token = uuid.uuid4().hex
+    pagamentos_pendentes[token] = pedido
+    webhook = f'{URL_WEBHOOK}/{token}'
+    link_pagamento = f'{URL_CONFIRMA_PAGAMENTO}?webhook={quote(webhook, safe="")}'
+
+    try:
+        # Confirma que a página de pagamento está acessível antes de avisar o cliente.
+        with urlopen(link_pagamento, timeout=3):
+            pass
+    except OSError as erro:
+        print(f"Não foi possível acessar a página de pagamento: {erro}")
+
+    pedido_com_pagamento = {
+        **pedido,
+        'link_pagamento': link_pagamento,
+    }
+    publicar_evento(canal, 'pagamento.aguardando', pedido_com_pagamento)
+    print(f"Link de pagamento criado para o pedido #{id_pedido}.")
+
+
+@app.post('/webhook/pagamento/<token>')
+def receber_confirmacao(token):
+    pedido = pagamentos_pendentes.pop(token, None)
+    if pedido is None:
+        return jsonify({'erro': 'link de pagamento inválido ou expirado'}), 404
+
+    dados = request.get_json(silent=True) or {}
+    status = dados.get('status')
+    if status not in ('aprovado', 'recusado'):
+        pagamentos_pendentes[token] = pedido
+        return jsonify({'erro': 'status de pagamento inválido'}), 400
+
+    evento = f'pagamento.{status}'
+    credenciais = pika.PlainCredentials('admin', 'admin123')
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host='localhost', credentials=credenciais)
+    )
+    canal = connection.channel()
+    canal.exchange_declare(exchange='eCommerce', exchange_type='direct')
+    publicar_evento(canal, evento, pedido)
+    connection.close()
+    print(f"Pagamento {status} para o pedido #{pedido['id_pedido']}.")
+    return jsonify({'status': evento}), 200
+
+
+def iniciar_webhook():
+    app.run(host='0.0.0.0', port=5002, threaded=True, use_reloader=False)
 
 def iniciar_consumidor():
     credenciais = pika.PlainCredentials('admin', 'admin123')
@@ -74,6 +131,7 @@ def iniciar_consumidor():
     # o serviço vai consumir o evento pedido.estoque_ok.
     channel.queue_bind(exchange='eCommerce', queue=nome_fila, routing_key='pedido.estoque_ok')
     
+    threading.Thread(target=iniciar_webhook, daemon=True).start()
     channel.basic_consume(queue=nome_fila, on_message_callback=processar_mensagem, auto_ack=True)
     channel.start_consuming()
 

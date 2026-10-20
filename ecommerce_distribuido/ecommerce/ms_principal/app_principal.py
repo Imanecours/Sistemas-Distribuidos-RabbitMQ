@@ -129,7 +129,7 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
         # verifica de quem veio a mensagem para usar a chave publica certa
         if routing_key in ['pedido.estoque_ok', 'estoque.indisponivel']:
             rsa.verify(msg, assinatura_bytes, chave_pub_estoque)
-        elif routing_key in ['pagamento.aprovado', 'pagamento.recusado']:
+        elif routing_key in ['pagamento.aguardando', 'pagamento.aprovado', 'pagamento.recusado']:
             rsa.verify(msg, assinatura_bytes, chave_pub_pagamento)
         elif routing_key == 'pedido.enviado':
             rsa.verify(msg, assinatura_bytes, chave_pub_entrega)
@@ -145,7 +145,10 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
             print(f"\nstatus do pedido {id_pedido} atualizado para: {routing_key}")
 
             #envia a novidade para o react via fila de notificacoes
-            fila_notificacoes.put({"id_pedido": id_pedido, "status": routing_key})
+            notificacao = {"id_pedido": id_pedido, "status": routing_key}
+            if routing_key == 'pagamento.aguardando':
+                notificacao["link_pagamento"] = pedido.get("link_pagamento")
+            fila_notificacoes.put(notificacao)
             # o documento exige publicar pedido.excluido se o estoque faltar ou pagamento for recusado
             if routing_key in ['pagamento.recusado']:
                 publicar_evento('pedido.excluido', meus_pedidos[id_pedido])
@@ -166,6 +169,7 @@ def escutar_rabbit():
     # o ms principal precisa escutar todos esses eventos
     eventos = [
         'pagamento.aprovado', 'pagamento.recusado', 
+        'pagamento.aguardando',
         'pedido.enviado', 'pedido.estoque_ok', 'estoque.indisponivel'
     ]
     for evento in eventos:
