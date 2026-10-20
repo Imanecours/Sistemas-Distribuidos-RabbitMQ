@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 def send_email(email, item_promo, desconto):
 
     load_dotenv()
-    resend.api_key = "re_LHYyUVCm_BUyDnxGy6Wjx3Vk1sYueuDmo"
+    resend.api_key = os.environ.get("API_KEY")
 
     params: resend.Emails.SendParams = {
         "from": "Acme <onboarding@resend.dev>",
