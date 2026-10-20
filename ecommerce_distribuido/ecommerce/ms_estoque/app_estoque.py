@@ -3,12 +3,20 @@ import json
 import rsa
 import base64
 
-import sys
-from pathlib import Path
-pasta_atual = Path(__file__).resolve().parent
-pasta_produtos = (pasta_atual / ".." / ".." / "pasta_produtos").resolve()
-sys.path.append(str(pasta_produtos))
-from produtos import ESTOQUE
+import sqlite3
+
+from flask import Flask, jsonify
+import threading
+from database import inicializar_banco, buscar_produtos
+
+app = Flask(__name__)
+
+inicializar_banco()
+
+@app.route('/produtos', methods=['GET'])
+def listar():
+    produtos = buscar_produtos()
+    return jsonify(produtos)
 
 # carrega a chave pública do ms_principal para saber QUEM mandou o pedido:
 with open('ecommerce/ms_estoque/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
@@ -65,35 +73,42 @@ def processar_novo_pedido(canal, pedido):
 
     print(f"\nAnalisando disponibilidade para o Pedido #{id_pedido}")
 
+    conn = sqlite3.connect('estoque.db')
+    cursor = conn.cursor()
+    
     # verifica se tem estoque:
     tem_estoque = True
     for item in produtos_pedidos:
-        produto_estoque = next((p for p in ESTOQUE if p['id_produto'] == item['id_produto']), None)
-        if not produto_estoque or produto_estoque['quantidade'] < item['quantidade']:
+        cursor.execute('SELECT quantidade FROM produtos WHERE id = ?', (item['id_produto'],))
+        resultado = cursor.fetchone()
+        if not resultado or resultado[0] < item['quantidade']:
             tem_estoque = False
             break
 
     if tem_estoque:
         # dá baixa no estoque
         for item in produtos_pedidos:
-            produto_estoque = next(p for p in ESTOQUE if p['id_produto'] == item['id_produto'])
-            produto_estoque['quantidade'] -= item['quantidade']
-            print(f"tem estoque; sai produto {produto_estoque['nome']} e sobram {produto_estoque['quantidade']}")
+            cursor.execute('UPDATE produtos SET quantidade = quantidade - ? WHERE id = ?', (item['quantidade'], item['id_produto']))
+            
+        conn.commit()
 
         publicar_evento(canal, 'pedido.estoque_ok', pedido) #publica evento avisando que o estoque está ok
 
     else:
         publicar_evento(canal, 'estoque.indisponivel', pedido)  
 
+    conn.close()
 
 def devolver_ao_estoque(pedido):
-    # repoe quantidade
+    conn = sqlite3.connect('estoque.db')
+    cursor = conn.cursor()
+    
     for item in pedido['produtos']:
-        produto_estoque = next((p for p in ESTOQUE if p['id_produto'] == item['id_produto']), None)
-        if produto_estoque:
-            produto_estoque['quantidade'] += item['quantidade']
-            print(f"[ESTOQUE] Devolvido {item['quantidade']}x do produto {produto_estoque['nome']} ao estoque")
-
+        cursor.execute('UPDATE produtos SET quantidade = quantidade + ? WHERE id = ?', (item['quantidade'], item['id_produto']))
+        print(f"[devolvido {item['quantidade']}x do produto ID {item['id_produto']} ao banco de dados")
+        
+    conn.commit()
+    conn.close()
 
 def iniciar_consumidor():
     credenciais = pika.PlainCredentials('admin', 'admin123')
@@ -114,4 +129,7 @@ def iniciar_consumidor():
     channel.start_consuming()
 
 if __name__ == '__main__':
-    iniciar_consumidor()
+
+    thread_consumidor = threading.Thread(target=iniciar_consumidor, daemon=True)
+    thread_consumidor.start()
+    app.run(port=5001)

@@ -4,12 +4,84 @@ import rsa
 import base64
 import threading
 
-import sys
-from pathlib import Path
-pasta_atual = Path(__file__).resolve().parent
-pasta_produtos = (pasta_atual / ".." / ".." / "pasta_produtos").resolve()
-sys.path.append(str(pasta_produtos))
-from produtos import ESTOQUE
+import requests
+import queue 
+from flask import Flask, jsonify, request, Response
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+URL_MS_ESTOQUE = 'http://localhost:5001/produtos'
+
+@app.route('/produtos', methods=['GET'])
+def obter_produtos():
+    try:
+        resposta = requests.get(URL_MS_ESTOQUE, timeout=3)
+        return jsonify(resposta.json()), resposta.status_code
+    except requests.exceptions.RequestException:
+        return jsonify({"erro": "ms_estoque indisponivel"}), 503
+
+@app.route('/comprar', methods=['POST'])
+def comprar():
+    dados_pedido = request.get_json()
+    
+    id_pedido = len(meus_pedidos) + 1
+    
+    novo_pedido = {
+        "id_pedido": id_pedido,
+        "produtos": [
+            {
+                "id_produto": dados_pedido['id_produto'], 
+                "quantidade": dados_pedido['quantidade']
+            }
+        ],
+        "status": "pedido.criado",
+        "cliente": dados_pedido.get('cliente', 'Desconhecido')
+    }
+    
+    meus_pedidos[id_pedido] = novo_pedido
+    
+    publicar_evento('pedido.criado', novo_pedido)
+    
+    print(f"Pedido {id_pedido} criado e enviado")
+    
+    return jsonify({
+        "status": "pedido.criado", 
+        "mensagem": "Pedido criado com sucesso",
+        "id_pedido": id_pedido
+    }), 201
+
+@app.route('/stream')
+def stream():
+    def gerador():
+        while True:
+            try:
+
+                notificacao = fila_notificacoes.get(timeout=1)
+
+                yield f"data: {json.dumps(notificacao)}\n\n"
+            except queue.Empty:
+                # manda um sinal vazio so pra conexao nao cair 
+                yield ": keep-alive\n\n"
+
+    return Response(gerador(), mimetype='text/event-stream')
+
+@app.route('/pedido/<int:id_pedido>', methods=['DELETE'])
+def cancelar_pedido(id_pedido):
+    if id_pedido in meus_pedidos:
+        pedido = meus_pedidos[id_pedido]
+        
+        pedido['status'] = 'pedido.excluido'
+        
+        publicar_evento('pedido.excluido', pedido)
+        
+        fila_notificacoes.put({"id_pedido": id_pedido, "status": "pedido.excluido"})
+        
+        print(f"Pedido {id_pedido} cancelado pelo usuario.")
+        return jsonify({"mensagem": "Pedido cancelado com sucesso"}), 200
+    else:
+        return jsonify({"erro": "Pedido nao encontrado"}), 404
 
 # carregar a chave privada do ms principal para ele assinar os pedidos
 with open('ecommerce/ms_principal/ms_principal_privada.pem', 'rb') as f:
@@ -26,6 +98,7 @@ with open('ecommerce/ms_principal/chaves_publicas/ms_entrega_publica.pem', 'rb')
     chave_pub_entrega = rsa.PublicKey.load_pkcs1(f.read())
 
 meus_pedidos = {}
+fila_notificacoes = queue.Queue() # fila segura para as threads conversarem
 
 def publicar_evento(routing_key, msg):
     # abrimos uma conexao rapida aqui para evitar erros do pika com threads
@@ -70,13 +143,12 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
             # atualiza o status do pedido na memoria
             meus_pedidos[id_pedido]['status'] = routing_key
             print(f"\nstatus do pedido {id_pedido} atualizado para: {routing_key}")
-            
-            # o documento exige publicar pedido.excluido se o estoque faltar ou pagamento for recusado
-            if routing_key in ['estoque.indisponivel', 'pagamento.recusado']:
-                publicar_evento('pedido.excluido', meus_pedidos[id_pedido])
 
-            # apenas para manter o terminal organizado e mostrar a opcao novamente
-            print("escolha uma opcao: ", end="", flush=True)
+            #envia a novidade para o react via fila de notificacoes
+            fila_notificacoes.put({"id_pedido": id_pedido, "status": routing_key})
+            # o documento exige publicar pedido.excluido se o estoque faltar ou pagamento for recusado
+            if routing_key in ['pagamento.recusado']:
+                publicar_evento('pedido.excluido', meus_pedidos[id_pedido])
 
     except rsa.VerificationError:
         print("\nassinatura invalida recebida.")
@@ -102,56 +174,9 @@ def escutar_rabbit():
     channel.basic_consume(queue=nome_fila, on_message_callback=processar_mensagem, auto_ack=True)
     channel.start_consuming()
 
-def menu():
-    # essa funcao roda no terminal principal para interagir com o usuario
-    while True:
-        print("\n--- menu ---")
-        print("1. ver produtos")
-        print("2. fazer pedido")
-        print("3. excluir pedido")
-        print("4. ver meus pedidos")
-        print("0. sair")
-        opcao = input("escolha uma opcao: ")
-
-        if opcao == '1':
-            for p in ESTOQUE:
-                print(f"{p['id_produto']} - {p['nome']} (R$ {p['preco']})")
-        
-        elif opcao == '2':
-            id_pedido = len(meus_pedidos) + 1
-            id_prod = int(input("id do produto: "))
-            qtd = int(input("quantidade: "))
-            
-            novo_pedido = {
-                "id_pedido": id_pedido,
-                "produtos": [{"id_produto": id_prod, "quantidade": qtd}],
-                "status": "pedido.criado"
-            }
-            meus_pedidos[id_pedido] = novo_pedido
-            publicar_evento('pedido.criado', novo_pedido)
-            print("pedido criado com sucesso.")
-
-        elif opcao == '3':
-            id_pedido = int(input("id do pedido para excluir: "))
-            if id_pedido in meus_pedidos:
-                meus_pedidos[id_pedido]['status'] = "pedido.excluido"
-                publicar_evento('pedido.excluido', meus_pedidos[id_pedido])
-                print("pedido excluido.")
-            else:
-                print("pedido nao encontrado.")
-
-        elif opcao == '4':
-            for k, v in meus_pedidos.items():
-                print(f"pedido {k}: status = {v['status']}")
-        
-        elif opcao == '0':
-            print("saindo.")
-            break
-
 if __name__ == '__main__':
     # cria a thread paralela. daemon=True faz ela desligar quando o programa principal fechar.
     thread_consumidor = threading.Thread(target=escutar_rabbit, daemon=True)
     thread_consumidor.start()
     
-    # inicia o menu no terminal
-    menu()
+    app.run(port=5000)
