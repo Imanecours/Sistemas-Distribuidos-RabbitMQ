@@ -108,19 +108,19 @@ def cancelar_pedido(id_pedido):
     else:
         return jsonify({"erro": "Pedido nao encontrado"}), 404
 
-# #carregar a chave privada do ms principal para ele assinar os pedidos
-# with open('ecommerce_distribuido/ecommerce/ms_principal/ms_principal_privada.pem', 'rb') as f:
-#     chave_privada = rsa.PrivateKey.load_pkcs1(f.read())
+# carregar a chave privada do ms principal para ele assinar os pedidos
+with open('ecommerce/ms_principal/ms_principal_privada.pem', 'rb') as f:
+    chave_privada = rsa.PrivateKey.load_pkcs1(f.read())
 
-# # carregar as chaves publicas dos outros microsservicos para validar quem mandou
-# with open('ecommerce_distribuido/ecommerce/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
-#     chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
+# carregar as chaves publicas dos outros microsservicos para validar quem mandou
+with open('ecommerce/ms_principal/chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+    chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
     
-# with open('ecommerce_distribuido/ecommerce/chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
-#     chave_pub_pagamento = rsa.PublicKey.load_pkcs1(f.read())
+with open('ecommerce/ms_principal/chaves_publicas/ms_pagamento_publica.pem', 'rb') as f:
+    chave_pub_pagamento = rsa.PublicKey.load_pkcs1(f.read())
     
-# with open('ecommerce_distribuido/ecommerce/chaves_publicas/ms_entrega_publica.pem', 'rb') as f:
-#     chave_pub_entrega = rsa.PublicKey.load_pkcs1(f.read())
+with open('ecommerce/ms_principal/chaves_publicas/ms_entrega_publica.pem', 'rb') as f:
+    chave_pub_entrega = rsa.PublicKey.load_pkcs1(f.read())
 
 meus_pedidos = {}
 fila_notificacoes = queue.Queue() # fila segura para as threads conversarem

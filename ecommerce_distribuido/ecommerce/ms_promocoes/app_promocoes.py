@@ -1,5 +1,4 @@
 import base64
-import os
 import json
 import threading
 import pika
@@ -9,13 +8,11 @@ import rsa
 import requests
 from servico_email import send_email
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 # Lista de clientes cadastrados
 cadastros = []
 
 # Caminho corrigido para a chave
-with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_principal_publica.pem'), 'rb') as f:
+with open('ecommerce/ms_promocoes/chaves_publicas/ms_principal_publica.pem', 'rb') as f:
     chave_publica_msprincipal = rsa.PublicKey.load_pkcs1(f.read())
 
 def publicar_promocao():

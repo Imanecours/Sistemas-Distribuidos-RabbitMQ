@@ -1,2 +1,5 @@
 pika
 rsa
+Flask
+flask-cors
+requests

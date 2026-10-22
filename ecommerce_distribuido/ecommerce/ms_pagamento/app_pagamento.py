@@ -4,24 +4,31 @@ import rsa
 import base64
 import os
 import threading
-from urllib.parse import quote
-from urllib.request import urlopen
+import uuid
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import requests
 
 # obter a chave pública do microsserviço produtor (MS Estoque)
-with open(os.path.join(BASE_DIR, 'ms_pagamento_privada.pem'), 'rb') as f:
-    chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
+with open('chaves_publicas/ms_estoque_publica.pem', 'rb') as f:
+    chave_publica_estoque = rsa.PublicKey.load_pkcs1(f.read())
 
 # para asinar as mensagens 
-with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_estoque_publica.pem'), 'rb') as f:
-    chave_pub_estoque = rsa.PublicKey.load_pkcs1(f.read())
+with open('ms_pagamento_privada.pem', 'rb') as f:
+    chave_privada_pagamento = rsa.PrivateKey.load_pkcs1(f.read())
 
 app = Flask(__name__)
 CORS(app)
+pagamentos_pendentes = {}
+URL_API_PAGAMENTO = os.getenv(
+    'URL_API_PAGAMENTO',
+    'http://localhost:8000/pagamento',
+)
+URL_WEBHOOK = os.getenv(
+    'URL_WEBHOOK_PAGAMENTO',
+    'http://localhost:5002/webhook/pagamento',
+)
 
 def publicar_evento(canal, routing_key, msg):
     msg_texto = json.dumps(msg)
@@ -47,7 +54,7 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 
     try: 
         # verificar a assinatura digital do evento e confirmar a autenticidade e a integridade da mensagem
-        rsa.verify(msg, assinatura_bytes, chave_pub_estoque)
+        rsa.verify(msg, assinatura_bytes, chave_publica_estoque)
         
         # processar o evento 
         pedido = json.loads(msg)
@@ -61,14 +68,31 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 def processar_pagamento(canal, pedido):
     id_pedido = pedido['id_pedido']
     print(f"\n Processando pagamento para o pedido #{id_pedido}")
-    
+
+    token = uuid.uuid4().hex
+    pagamentos_pendentes[token] = pedido
+    webhook = f'{URL_WEBHOOK}/{token}'
 
     try:
-        # Confirma que a página de pagamento está acessível antes de avisar o cliente.
-        with urlopen(link_pagamento, timeout=3):
-            pass
-    except OSError as erro:
-        print(f"Não foi possível acessar a página de pagamento: {erro}")
+        resposta = requests.post(
+            URL_API_PAGAMENTO,
+            json={
+                'id_pedido': id_pedido,
+                'webhook': webhook,
+            },
+            timeout=3,
+        )
+        resposta.raise_for_status()
+        dados_pagamento = resposta.json()
+        link_pagamento = dados_pagamento.get('url') or dados_pagamento.get(
+            'link_pagamento'
+        )
+        if not isinstance(link_pagamento, str) or not link_pagamento:
+            raise ValueError('A API de pagamento não retornou uma URL válida.')
+    except (requests.RequestException, ValueError) as erro:
+        pagamentos_pendentes.pop(token, None)
+        print(f"Não foi possível gerar o link de pagamento: {erro}")
+        return
 
     pedido_com_pagamento = {
         **pedido,

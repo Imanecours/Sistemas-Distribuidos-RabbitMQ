@@ -3,12 +3,14 @@ import resend
 from resend.exceptions import ResendError
 from dotenv import load_dotenv
 
-ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env')
-
 def send_email(email, item_promo, desconto):
 
     load_dotenv()
+<<<<<<< HEAD
     resend.api_key = os.environ.get("API_KEY")
+=======
+    resend.api_key = "re_LHYyUVCm_BUyDnxGy6Wjx3Vk1sYueuDmo"
+>>>>>>> parent of 551d309 (corrigindo caminhos e adicionando .env)
 
     params: resend.Emails.SendParams = {
         "from": "Acme <onboarding@resend.dev>",

@@ -100,7 +100,7 @@
         const botoes = document.querySelectorAll("button[data-status]");
 
         const parametros = new URLSearchParams(window.location.search);
-        const webhook = parametros.get("webhook");
+        const webhook = parametros.get("webhook") || parametros.get("link");
 
         function mostrarMensagem(texto, tipo) {
             mensagem.className = tipo;
