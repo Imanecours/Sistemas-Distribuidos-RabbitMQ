@@ -4,7 +4,6 @@ import rsa
 import base64
 import os
 import threading
-import uuid
 from urllib.parse import quote
 from urllib.request import urlopen
 
@@ -23,15 +22,6 @@ with open(os.path.join(BASE_DIR, 'chaves_publicas', 'ms_estoque_publica.pem'), '
 
 app = Flask(__name__)
 CORS(app)
-pagamentos_pendentes = {}
-URL_CONFIRMA_PAGAMENTO = os.getenv(
-    'URL_CONFIRMA_PAGAMENTO',
-    'http://localhost:8000/confirma_pagamento.html',
-)
-URL_WEBHOOK = os.getenv(
-    'URL_WEBHOOK_PAGAMENTO',
-    'http://localhost:5002/webhook/pagamento',
-)
 
 def publicar_evento(canal, routing_key, msg):
     msg_texto = json.dumps(msg)
@@ -71,11 +61,7 @@ def processar_mensagem(canal, metodo, cabecalho, msg):
 def processar_pagamento(canal, pedido):
     id_pedido = pedido['id_pedido']
     print(f"\n Processando pagamento para o pedido #{id_pedido}")
-
-    token = uuid.uuid4().hex
-    pagamentos_pendentes[token] = pedido
-    webhook = f'{URL_WEBHOOK}/{token}'
-    link_pagamento = f'{URL_CONFIRMA_PAGAMENTO}?webhook={quote(webhook, safe="")}'
+    
 
     try:
         # Confirma que a página de pagamento está acessível antes de avisar o cliente.

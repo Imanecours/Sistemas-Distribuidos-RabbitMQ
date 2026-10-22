@@ -142,7 +142,7 @@ def publicar_evento(routing_key, msg):
     canal.basic_publish(exchange='eCommerce', routing_key=routing_key, body=msg_texto, properties=cabecalho)
     connection.close()
 
-def processar_mensagem(canal, metodo, cabecalho, msg):
+def fw(canal, metodo, cabecalho, msg):
     if cabecalho.headers is None or 'Signature' not in cabecalho.headers:
         return
 
